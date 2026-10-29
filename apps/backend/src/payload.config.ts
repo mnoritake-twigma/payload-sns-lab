@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { buildConfig } from 'payload'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { Users } from './collections/Users'
+import { Posts } from './collections/Posts'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 if (!process.env.PAYLOAD_SECRET || process.env.PAYLOAD_SECRET.length < 32) {
@@ -13,7 +14,7 @@ export default buildConfig({
   secret: process.env.PAYLOAD_SECRET,
   serverURL: process.env.PAYLOAD_PUBLIC_URL || 'http://localhost:4310',
   admin: { user: 'users', importMap: { baseDir: dirname } },
-  collections: [Users],
+  collections: [Users, Posts],
   db: sqliteAdapter({
     client: { url: process.env.DATABASE_URL || 'file:./data/sns.db' },
     migrationDir: path.resolve(dirname, 'migrations'),

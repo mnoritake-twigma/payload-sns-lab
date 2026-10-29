@@ -1,6 +1,6 @@
 # Payload SNS Lab
 
-React / Vite / Tailwind CSSの画面を、Payload / Next.js / SQLiteにREST APIで接続する学習用SNSです。Wave 1のローカル認証を実装しています。
+React / Vite / Tailwind CSSの画面を、Payload / Next.js / SQLiteにREST APIで接続する学習用SNSです。Wave 1のローカル認証とWave 2の投稿機能を実装しています。
 
 ## 起動
 
@@ -24,6 +24,8 @@ npm run dev
 
 `setup`は既存の.envを上書きしません。SQLiteのデータは `apps/backend/data/sns.db` に残ります。停止は起動したターミナルでCtrl+Cです。サーバーはループバックにだけバインドします。
 
+既存のWave 1環境では、サーバーを停止して `npm run migrate` を実行してから起動してください。既存ユーザーは保持され、投稿用テーブルが追加されます。
+
 ## いま試せること
 
 1. `alice`でログインして、認証済みのアカウントを確認。
@@ -32,6 +34,9 @@ npm run dev
 4. 「APIとのやりとり」で実際のリクエストのパスと結果を確認。
 5. ログアウトし、ログイン画面に戻ることを確認。
 6. `admin`でログインし、管理画面でユーザーを確認・追加。一般ユーザーは管理画面を利用できません。
+
+7. ログイン後の投稿フォームで500文字以内の本文を投稿。新着順・20件ずつの一覧に反映されます。
+8. 自分の投稿の「削除」→「削除する」を押して削除。他人の投稿には削除ボタンが出ません。
 
 ブラウザーの開発者ツールのNetworkでも通信を確認できます。パスワードはHTTPSで保護されたログインリクエストの本文として送るのが本番構成です。このローカル検証はHTTPで、CookieのSecureはproductionで有効になります。ブラウザーのlocalStorageに認証情報を保存しません。
 
@@ -94,6 +99,7 @@ npm run typecheck
 npm run build
 # 別ターミナルで npm run dev を起動した状態で実行
 npm run test:auth
+npm run test:posts
 ```
 
 統合テストはViteプロキシ経由でPayloadとSQLiteを操作します。未認証の拒否、誤パスワード、Cookie属性、meによる復元、秘密フィールドの非公開、権限変更の拒否、管理者権限、不正Origin、ユーザー名重複、ログアウト後の古いCookieの無効化を確認します。
@@ -104,4 +110,26 @@ npm run test:auth
 
 ## 次のWave
 
-Wave 2は投稿、Wave 3はフォロー、Wave 4はOktaです。詳細は[要件Doc](docs/payload-sns-plan.docx)と、[チケット台帳](TICKETS.md)を参照してください。Okta環境・アプリ登録権限はWave 4で確認し、実環境で成功するまで完了にはしません。
+Wave 2（投稿）は完了しました。次はWave 3のフォロー、Wave 4のOktaです。詳細は[要件Doc](docs/payload-sns-plan.md)と、[チケット台帳](TICKETS.md)を参照してください。Okta環境・アプリ登録権限はWave 4で確認し、実環境で成功するまで完了にはしません。
+
+## Wave 2: 投稿のしくみ
+
+Reactの `Timeline.tsx` → `POST /api/posts` → Payloadのアクセス制御とHook → SQLiteの `posts` テーブル、という順に処理します。独自のCRUDルートやSQLをフロントから呼ぶ実装は不要です。`Posts.ts` のCollection定義から標準REST APIと管理画面が生成されます。
+
+| API | 挙動 |
+| --- | --- |
+| `POST /api/posts` | 本文を送信。ログインユーザーをauthorとしてサーバーが設定 |
+| `GET /api/posts?sort=-createdAt,-id&limit=20&page=1&depth=1` | 新着順、同時刻はID降順。authorのプロフィールを展開 |
+| `GET /api/posts?where[author][equals]=1` | 特定ユーザーの投稿を絞り込む標準API |
+| `DELETE /api/posts/:id` | 本人の投稿だけ削除。管理者にも他人の削除権限は付けない |
+| `PATCH /api/posts/:id` | 投稿編集は対象外のため全ユーザーで拒否 |
+
+`body`は空白だけを拒否し、UTF-16コード単位で最大500文字です（絵文字によっては2文字分）。改行を保持し、HTMLは文字として表示します。送信中は二重操作を防ぎ、取得失敗時は一覧の再読込ができます。ページ分割は都度取得するため、別ユーザーが投稿・削除するとページ境界は変わります。
+
+`author`はusersへのRelationshipです。生成されたSQLiteでは必須の `author_id` と外部キーになり、authorとcreatedAtにインデックスが付きます。Payloadのロック管理用の関連テーブルにもpostsへの参照が追加されます。ユーザー削除は現在禁止しており、将来許可する際は関連投稿の保持・削除と外部キーの挙動を合わせて設計します。
+
+投稿者の偽装はHookで拒否し、削除はAccess Controlが `author = ログインユーザーID` の条件を適用します。プロフィールを展開しても、他人のemailやパスワードのハッシュは返りません。投稿時刻をクライアントから上書きすることも許可しません。
+
+投稿テストはalice/bobで一時投稿を作り、終了時に削除します。空白、文字数境界、偽装、他人の削除、編集拒否、21件のページ分割、関連先の秘密情報非公開、SQLiteの保存を確認します。専用のローカル検証環境で実行してください。
+
+参考: [Collection Hooks](https://payloadcms.com/docs/hooks/collections)、[Access Control](https://payloadcms.com/docs/access-control/overview)。

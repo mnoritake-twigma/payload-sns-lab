@@ -8,11 +8,13 @@ button:disabled { cursor: wait; }
 button:focus-visible, a:focus-visible { outline: 3px solid #a3c979; outline-offset: 4px; }
 .mono, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .card { border: 1px solid #e0e2d9; border-radius: 18px; padding: 28px; background: white; box-shadow: 0 4px 18px #182f1e04; }
-input { width: 100%; border: 1px solid #d6dbd3; border-radius: 8px; padding: 12px 14px; background: #fcfcfa; font-size: 14px; }
-input:focus { outline: 2px solid #2e664b; outline-offset: 2px; }
+input, textarea { width: 100%; border: 1px solid #d6dbd3; border-radius: 8px; padding: 12px 14px; background: #fcfcfa; font-size: 14px; }
+input:focus, textarea:focus { outline: 2px solid #2e664b; outline-offset: 2px; }
 .primary { border-radius: 8px; padding: 14px 20px; background: #153e2c; color: #fff; font-size: 14px; font-weight: 600; transition: background .15s; }
 .primary:hover { background: #24563e; }
 .primary:disabled { opacity: .6; }
 .tab { padding-bottom: 12px; font-size: 12px; color: #777d75; border-bottom: 2px solid transparent; }
 .tab.selected { color: #164d34; border-bottom-color: #164d34; }
 @media (max-width: 450px) { .card { padding: 22px; } }
+
+textarea { resize: vertical; }
