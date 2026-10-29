@@ -19,7 +19,7 @@ try {
     }
     await payload.create({
       collection: 'users', overrideAccess: true,
-      data: { username, displayName, role, email: `${username}@example.test`, password: role === 'admin' ? adminPassword : memberPassword },
+      data: { authProvider: 'local', username, displayName, role, email: `${username}@example.test`, password: role === 'admin' ? adminPassword : memberPassword },
     })
     console.log(`Created user: ${username} (${role})`)
   }

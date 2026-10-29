@@ -1,5 +1,8 @@
 {
-  "name": "@sns/backend", "private": true, "type": "module", "version": "0.1.0",
+  "name": "@sns/backend",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
   "scripts": {
     "predev": "payload generate:importmap",
     "prebuild": "payload generate:importmap",
@@ -11,11 +14,27 @@
     "generate:types": "payload generate:types",
     "generate:importmap": "payload generate:importmap",
     "migrate:create": "payload migrate:create",
-    "migrate": "payload migrate"
+    "migrate": "payload migrate",
+    "test:oidc": "node --import tsx --test tests/oidc.test.ts",
+    "okta:check": "node --import tsx --env-file=.env scripts/check-okta.ts"
   },
   "dependencies": {
-    "@payloadcms/db-sqlite": "3.92.1", "@payloadcms/next": "3.92.1", "payload": "3.92.1",
-    "next": "16.4.3", "react": "^19.2.0", "react-dom": "^19.2.0", "graphql": "^16.11.0"
+    "@payloadcms/db-sqlite": "3.92.1",
+    "@payloadcms/drizzle": "3.92.1",
+    "@payloadcms/next": "3.92.1",
+    "graphql": "^16.11.0",
+    "jose": "6.2.14",
+    "next": "16.4.3",
+    "openid-client": "6.8.8",
+    "payload": "3.92.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
-  "devDependencies": { "typescript": "^5.9.3", "tsx": "^4.20.6", "@types/node": "^24.0.0", "@types/react": "^19.2.0", "@types/react-dom": "^19.2.0" }
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { People } from './People'
 import { Timeline } from './Timeline'
-import { auth, ApiError, type Trace, type User } from './api'
+import { auth, request, ApiError, type Trace, type User } from './api'
 
 function Flow() {
   return <div className="space-y-3" aria-label="アプリの構成">
@@ -22,6 +22,7 @@ function Flow() {
 
 export function App() {
   const [user, setUser] = useState<User | null>(null)
+  const [oktaEnabled, setOktaEnabled] = useState(false)
   const [checking, setChecking] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -55,6 +56,12 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController()
+    void request<{ enabled: boolean }>('/api/oidc/status', { signal: controller.signal }).then(r => setOktaEnabled(r.enabled)).catch(() => {})
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('auth_error')) {
+      setNotice('Oktaログインを完了できませんでした。もう一度お試しください。')
+      url.searchParams.delete('auth_error'); window.history.replaceState(null, '', url)
+    }
     void restore(controller.signal)
     return () => controller.abort()
   }, [])
@@ -95,7 +102,7 @@ export function App() {
     <header className="border-b border-stone-200 bg-white/70">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
         <a href="/" className="flex items-center gap-3 font-semibold tracking-tight"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-950 font-mono text-lg text-lime-200">p</span>Payload <span className="font-normal text-stone-500">SNS Lab</span></a>
-        <span className="mono rounded-full border border-stone-200 px-3 py-1.5 text-[10px] tracking-widest text-stone-500">WAVE 03 / FOLLOWS</span>
+        <span className="mono rounded-full border border-stone-200 px-3 py-1.5 text-[10px] tracking-widest text-stone-500">WAVE 04 / OKTA</span>
       </div>
     </header>
     <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10 sm:py-16">
@@ -110,22 +117,23 @@ export function App() {
             {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}<button className="mt-2 block underline" onClick={() => { setChecking(true); void restore() }}>再接続する</button></div>}
           </div>
           {checking ? <div className="card mt-8" role="status">ログイン状態を確認しています…</div> : !user ?
-            <form onSubmit={login} className="card mt-6 space-y-5">
+            <><form onSubmit={login} className="card mt-6 space-y-5">
               <h2 className="text-base font-semibold">アカウントにログイン</h2>
               <div><label htmlFor="username" className="mb-2 block text-xs font-semibold">ユーザー名</label><input id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={e => setUsername(e.target.value)} required maxLength={32} placeholder="alice" /></div>
               <div><label htmlFor="password" className="mb-2 block text-xs font-semibold">パスワード</label><input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
               <button className="primary w-full" type="submit" disabled={busy}>{busy ? 'ログインしています…' : 'ログインする　→'}</button>
-              <p className="text-xs leading-6 text-stone-500">検証用のアカウントを使用してください。<br />OktaログインはWave 4で追加します。</p>
-            </form> : <div className="card mt-6">
+              <p className="text-xs leading-6 text-stone-500">検証用のアカウントを使用してください。<br />Oktaは下のボタンから利用できます。</p>
+            </form><form action="/api/oidc/login" method="post" className="mt-4"><button className="w-full rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm disabled:opacity-50" disabled={!oktaEnabled || busy}>Oktaでログイン</button><p className="mt-2 text-xs leading-6 text-stone-500">{oktaEnabled ? 'Oktaのサインイン画面へ移動します。' : 'Oktaの接続設定が完了すると利用できます。'}</p></form></> : <div className="card mt-6">
               <nav className="mb-7 flex gap-5 border-b border-stone-200" aria-label="アカウント情報">
                 <button className={`tab ${view === 'account' ? 'selected' : ''}`} aria-pressed={view === 'account'} onClick={() => setView('account')}>アカウント</button>
                 <button className={`tab ${view === 'architecture' ? 'selected' : ''}`} aria-pressed={view === 'architecture'} onClick={() => setView('architecture')}>接続のしくみ</button>
               </nav>
               {view === 'account' ? <>
                 <div className="mb-6 flex items-center gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-lg font-semibold text-emerald-900">{user.displayName.slice(0,1)}</span><div><h2 className="font-semibold">{user.displayName}</h2><p className="mono mt-1 text-xs text-stone-500">@{user.username}</p></div><span className="ml-auto rounded-full bg-stone-100 px-3 py-1 text-xs">{user.role === 'admin' ? '管理者' : '一般ユーザー'}</span></div>
-                <dl className="space-y-4 text-sm"><div className="flex justify-between"><dt className="text-stone-500">ログイン方法</dt><dd>ユーザー名・パスワード</dd></div><div className="flex justify-between"><dt className="text-stone-500">セッション</dt><dd className="text-emerald-800">認証済み</dd></div><div className="flex justify-between"><dt className="text-stone-500">有効期限</dt><dd>ログインから1時間</dd></div></dl>
+                <dl className="space-y-4 text-sm"><div className="flex justify-between"><dt className="text-stone-500">ログイン方法</dt><dd>{user.authProvider === 'okta' ? 'Okta' : 'ユーザー名・パスワード'}</dd></div><div className="flex justify-between"><dt className="text-stone-500">セッション</dt><dd className="text-emerald-800">認証済み</dd></div><div className="flex justify-between"><dt className="text-stone-500">有効期限</dt><dd>ログインから1時間</dd></div></dl>
                 {user.role === 'admin' && <a className="mt-6 block text-sm text-emerald-800 underline underline-offset-4" href={`${window.location.protocol}//${window.location.hostname}:4310/admin`} target="_blank" rel="noreferrer">Payload管理画面を開く ↗</a>}
               </> : <div className="space-y-4 text-sm leading-7 text-stone-600"><p>画面が <code>POST /api/users/login</code> を呼び出すと、Payloadがパスワードを検証し、HttpOnly Cookieを発行します。</p><p>再読込時は <code>GET /api/users/me</code> で現在のユーザーを取得します。Reactはパスワードやトークンを保存しません。</p><p>ログアウト時はPayloadにセッションの終了を依頼します。DB操作と権限の判定はバックエンドで行います。</p></div>}
+              {user.authProvider === 'okta' && <p className="mt-5 text-xs leading-6 text-stone-500">ログアウトはこのSNSのセッションを終了します。Okta側のSSOセッションは継続するため、再ログイン時にパスワード入力を省略する場合があります。</p>}
               <button className="mt-8 w-full rounded-lg border border-stone-300 px-4 py-3 text-sm hover:bg-stone-50 disabled:opacity-50" onClick={() => void logout()} disabled={busy}>{busy ? 'ログアウトしています…' : 'ログアウト'}</button>
             </div>}
           {user && !checking && <>
@@ -136,7 +144,7 @@ export function App() {
         <aside className="lg:pt-3">
           <div className="mb-5 flex items-center justify-between"><h2 className="text-sm font-semibold">このアプリの構成</h2><span className="mono text-[10px] tracking-widest text-stone-400">ARCHITECTURE</span></div>
           <Flow />
-          <div className="mt-8 rounded-xl bg-emerald-950 p-6 text-white"><p className="mono mb-3 text-[10px] tracking-widest text-lime-200">WAVE 03</p><h2 className="text-base font-semibold">いま確かめること</h2><p className="mt-3 text-sm leading-7 text-emerald-100/80">ユーザーを探して、フォローと解除。2人の関連をSQLiteに保存し、重複はDBの一意制約で防ぎます。OktaログインはWave 4で追加します。</p></div>
+          <div className="mt-8 rounded-xl bg-emerald-950 p-6 text-white"><p className="mono mb-3 text-[10px] tracking-widest text-lime-200">WAVE 04</p><h2 className="text-base font-semibold">いま確かめること</h2><p className="mt-3 text-sm leading-7 text-emerald-100/80">Oktaで本人確認した後、SNS専用のセッションを発行します。投稿とフォローには、同じPayloadの権限制御が適用されます。</p></div>
         </aside>
       </div>
       <section className="mt-14 border-t border-stone-200 pt-6" aria-label="API通信履歴">

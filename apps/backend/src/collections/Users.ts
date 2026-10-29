@@ -1,3 +1,5 @@
+import { APIError } from 'payload'
+import { oktaStrategy, oidcMe, oidcLogout } from '../oidc/session'
 import type { Access, CollectionConfig, FieldAccess } from 'payload'
 
 const adminOnly: Access = ({ req }) => req.user?.role === 'admin'
@@ -7,7 +9,12 @@ export const Users: CollectionConfig = {
   slug: 'users',
   labels: { singular: 'ユーザー', plural: 'ユーザー' },
   admin: { useAsTitle: 'username', defaultColumns: ['username', 'displayName', 'role'] },
+  hooks: {
+    me: [oidcMe], afterLogout: [oidcLogout],
+    beforeLogin: [({ user }) => { if (user.authProvider === 'okta') throw new APIError('Oktaでログインしてください。', 401); return user }],
+  },
   auth: {
+    strategies: [oktaStrategy],
     loginWithUsername: { allowEmailLogin: false, requireEmail: false },
     tokenExpiration: 3600,
     useSessions: true,
@@ -24,6 +31,7 @@ export const Users: CollectionConfig = {
     delete: () => false,
   },
   fields: [
+    { name: 'authProvider', type: 'select', required: true, defaultValue: 'local', options: ['local', 'okta'], admin: { readOnly: true }, access: { create: () => false, update: () => false } },
     {
       name: 'username', type: 'text', required: true, unique: true,
       hooks: { beforeValidate: [({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value] },

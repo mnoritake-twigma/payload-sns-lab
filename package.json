@@ -19,9 +19,15 @@
     "test:auth": "node --test tests/auth.test.mjs",
     "db:inspect": "node scripts/inspect-db.mjs",
     "test:posts": "node --test tests/posts.test.mjs",
-    "test:follows": "node --test tests/follows.test.mjs"
+    "test:follows": "node --test tests/follows.test.mjs",
+    "test:oidc": "npm run test:oidc -w @sns/backend",
+    "okta:check": "npm run okta:check -w @sns/backend"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "overrides": {
+    "dompurify": "3.4.17",
+    "graphql-scalars": "2.0.1"
   }
 }

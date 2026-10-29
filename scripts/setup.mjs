@@ -8,6 +8,10 @@ const env = [
   `PAYLOAD_SECRET=${randomBytes(32).toString('hex')}`,
   'DATABASE_URL=file:./data/sns.db',
   'PAYLOAD_PUBLIC_URL=http://localhost:4310',
+  'APP_URL=http://127.0.0.1:5173',
+  'OKTA_ISSUER=',
+  'OKTA_CLIENT_ID=',
+  'OKTA_CLIENT_SECRET=',
   `SEED_ADMIN_PASSWORD=${randomBytes(18).toString('base64url')}`,
   `SEED_MEMBER_PASSWORD=${randomBytes(18).toString('base64url')}`,
 ].join('\n') + '\n'

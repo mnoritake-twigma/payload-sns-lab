@@ -70,6 +70,9 @@ export interface Config {
     users: User;
     posts: Post;
     follows: Follow;
+    'auth-identities': AuthIdentity;
+    'oidc-sessions': OidcSession;
+    'oidc-flows': OidcFlow;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -80,6 +83,9 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     follows: FollowsSelect<false> | FollowsSelect<true>;
+    'auth-identities': AuthIdentitiesSelect<false> | AuthIdentitiesSelect<true>;
+    'oidc-sessions': OidcSessionsSelect<false> | OidcSessionsSelect<true>;
+    'oidc-flows': OidcFlowsSelect<false> | OidcFlowsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -123,6 +129,7 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
+  authProvider: 'local' | 'okta';
   displayName: string;
   role: 'member' | 'admin';
   password?: string | null;
@@ -170,6 +177,41 @@ export interface Follow {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "auth-identities".
+ */
+export interface AuthIdentity {
+  id: number;
+  issuer: string;
+  subject: string;
+  user: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "oidc-sessions".
+ */
+export interface OidcSession {
+  id: number;
+  tokenHash: string;
+  user: number | User;
+  expiresAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "oidc-flows".
+ */
+export interface OidcFlow {
+  id: number;
+  stateHash: string;
+  expiresAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -203,6 +245,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'follows';
         value: number | Follow;
+      } | null)
+    | ({
+        relationTo: 'auth-identities';
+        value: number | AuthIdentity;
+      } | null)
+    | ({
+        relationTo: 'oidc-sessions';
+        value: number | OidcSession;
+      } | null)
+    | ({
+        relationTo: 'oidc-flows';
+        value: number | OidcFlow;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -251,6 +305,7 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  authProvider?: T;
   displayName?: T;
   role?: T;
   password?: T;
@@ -290,6 +345,38 @@ export interface PostsSelect<T extends boolean = true> {
 export interface FollowsSelect<T extends boolean = true> {
   follower?: T;
   following?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "auth-identities_select".
+ */
+export interface AuthIdentitiesSelect<T extends boolean = true> {
+  issuer?: T;
+  subject?: T;
+  user?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "oidc-sessions_select".
+ */
+export interface OidcSessionsSelect<T extends boolean = true> {
+  tokenHash?: T;
+  user?: T;
+  expiresAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "oidc-flows_select".
+ */
+export interface OidcFlowsSelect<T extends boolean = true> {
+  stateHash?: T;
+  expiresAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

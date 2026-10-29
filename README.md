@@ -1,6 +1,6 @@
 # Payload SNS Lab
 
-React / Vite / Tailwind CSSの画面を、Payload / Next.js / SQLiteにREST APIで接続する学習用SNSです。Wave 1のローカル認証、Wave 2の投稿、Wave 3のフォローを実装しています。
+React / Vite / Tailwind CSSの画面を、Payload / Next.js / SQLiteにREST APIで接続する学習用SNSです。Wave 1〜3は完了しています。Wave 4のOkta連携コードとモック検証を追加しましたが、実Oktaへの接続確認は未完了です。[Okta設定手順](docs/okta-setup.md)を参照してください。
 
 ## 起動
 
@@ -90,7 +90,7 @@ npm run migrate:create -w @sns/backend
 npm run migrate
 ```
 
-サーバー内でPayloadのLocal APIを使う際は、利用者操作には `overrideAccess: false` と認証ユーザーを指定します。このWaveではUIから標準REST APIを使い、権限を迂回するLocal APIはseedに限定しています。
+サーバー内でPayloadのLocal APIを使う際は、利用者操作には `overrideAccess: false` と認証ユーザーを指定します。このWaveではUIから標準REST APIを使い、権限を迂回するLocal APIはseedと検証済みOIDC認証の内部処理に限定しています。
 
 ## 検証
 
@@ -101,6 +101,7 @@ npm run build
 npm run test:auth
 npm run test:posts
 npm run test:follows
+npm run test:oidc
 ```
 
 統合テストはViteプロキシ経由でPayloadとSQLiteを操作します。未認証の拒否、誤パスワード、Cookie属性、meによる復元、秘密フィールドの非公開、権限変更の拒否、管理者権限、不正Origin、ユーザー名重複、ログアウト後の古いCookieの無効化を確認します。
@@ -111,7 +112,7 @@ npm run test:follows
 
 ## 次のWave
 
-Wave 3（フォロー）まで完了しました。次はWave 4のOktaです。詳細は[要件Doc](docs/payload-sns-plan.md)と、[チケット台帳](TICKETS.md)を参照してください。Okta環境・アプリ登録権限はWave 4で確認し、実環境で成功するまで完了にはしません。
+Wave 3（フォロー）まで完了しました。Wave 4は連携実装・モック検証済みで、issuer URLとOktaアプリ設定、実ログインの検証待ちです。詳細は[要件Doc](docs/payload-sns-plan.md)と、[チケット台帳](TICKETS.md)を参照してください。Okta環境・アプリ登録権限はWave 4で確認し、実環境で成功するまで完了にはしません。
 
 ## Wave 2: 投稿のしくみ
 
@@ -159,3 +160,16 @@ Hookで自己フォロー・他人名義・不正な対象ID・対象ユーザ�
 `npm run test:follows` は6件の同時作成、DB一意インデックス、本人制約、自己フォロー、対象不在、解除済みへの再解除、再フォロー、投稿のauthor絞り込みを確認します。alice→bobの既存関係があると、その関係を壊さないようテストをスキップします。全項目を検証するには専用DBを使うか、画面からその関係を解除して実行してください。テスト自身が作成した関係と投稿は後処理で削除します。
 
 公式資料: [Payloadの複合インデックス](https://payloadcms.com/docs/database/indexes)。
+
+## Wave 4: Okta連携の実装と確認待ち
+
+[Okta設定手順](docs/okta-setup.md)に登録項目、環境変数、認証フロー、Collection設計、実環境の確認項目をまとめています。実ログインは未確認なので、Wave 4はまだ完了扱いにしていません。
+
+- Authorization Code + PKCE。OIDC検証はopenid-client、署名検証を明示的に有効化。
+- 外部IDはissuer＋subjectで対応付け、メール一致では統合しない。
+- SNSセッションは1時間、HttpOnly Cookie、DBに保存するのはハッシュだけ。
+- `me` / `logout` と投稿・フォローの権限は既存のPayload APIを共用。
+- Okta設定がない場合、画面のボタンは無効。ローカルログインは引き続き使用可能。
+- `npm run test:oidc` は専用の一時SQLiteとモックOIDC Providerで動作し、実Okta環境の成功を意味しない。
+
+依存監査で検出したDOMPurifyとgraphql-scalarsの重大・高リスク問題に対し、rootのoverridesで3.4.17と2.0.1に固定しました。型検査・ビルド・認証と投稿の回帰テストを確認しています。監査にはlow/moderateの既知項目が残っており、公開デプロイの検証は対象外です。

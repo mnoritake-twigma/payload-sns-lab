@@ -1,4 +1,4 @@
-export type User = { id: number | string; username: string; displayName: string; role: 'member' | 'admin' }
+export type User = { id: number | string; username: string; displayName: string; role: 'member' | 'admin'; authProvider?: 'local' | 'okta' }
 export type Trace = { method: string; path: string; status: number; at: string }
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message) }
