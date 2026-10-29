@@ -1,6 +1,6 @@
 # Payload SNS Lab
 
-React / Vite / Tailwind CSSの画面を、Payload / Next.js / SQLiteにREST APIで接続する学習用SNSです。Wave 1のローカル認証とWave 2の投稿機能を実装しています。
+React / Vite / Tailwind CSSの画面を、Payload / Next.js / SQLiteにREST APIで接続する学習用SNSです。Wave 1のローカル認証、Wave 2の投稿、Wave 3のフォローを実装しています。
 
 ## 起動
 
@@ -24,7 +24,7 @@ npm run dev
 
 `setup`は既存の.envを上書きしません。SQLiteのデータは `apps/backend/data/sns.db` に残ります。停止は起動したターミナルでCtrl+Cです。サーバーはループバックにだけバインドします。
 
-既存のWave 1環境では、サーバーを停止して `npm run migrate` を実行してから起動してください。既存ユーザーは保持され、投稿用テーブルが追加されます。
+既存環境を更新する場合は、サーバーを停止して `npm run migrate` を実行してから起動してください。既存ユーザーは保持され、必要な投稿・フォロー用テーブルが追加されます。
 
 ## いま試せること
 
@@ -100,6 +100,7 @@ npm run build
 # 別ターミナルで npm run dev を起動した状態で実行
 npm run test:auth
 npm run test:posts
+npm run test:follows
 ```
 
 統合テストはViteプロキシ経由でPayloadとSQLiteを操作します。未認証の拒否、誤パスワード、Cookie属性、meによる復元、秘密フィールドの非公開、権限変更の拒否、管理者権限、不正Origin、ユーザー名重複、ログアウト後の古いCookieの無効化を確認します。
@@ -110,7 +111,7 @@ npm run test:posts
 
 ## 次のWave
 
-Wave 2（投稿）は完了しました。次はWave 3のフォロー、Wave 4のOktaです。詳細は[要件Doc](docs/payload-sns-plan.md)と、[チケット台帳](TICKETS.md)を参照してください。Okta環境・アプリ登録権限はWave 4で確認し、実環境で成功するまで完了にはしません。
+Wave 3（フォロー）まで完了しました。次はWave 4のOktaです。詳細は[要件Doc](docs/payload-sns-plan.md)と、[チケット台帳](TICKETS.md)を参照してください。Okta環境・アプリ登録権限はWave 4で確認し、実環境で成功するまで完了にはしません。
 
 ## Wave 2: 投稿のしくみ
 
@@ -133,3 +134,28 @@ Reactの `Timeline.tsx` → `POST /api/posts` → Payloadのアクセス制御�
 投稿テストはalice/bobで一時投稿を作り、終了時に削除します。空白、文字数境界、偽装、他人の削除、編集拒否、21件のページ分割、関連先の秘密情報非公開、SQLiteの保存を確認します。専用のローカル検証環境で実行してください。
 
 参考: [Collection Hooks](https://payloadcms.com/docs/hooks/collections)、[Access Control](https://payloadcms.com/docs/access-control/overview)。
+
+## Wave 3: ユーザーとフォロー
+
+ログイン後に「ユーザー・フォロー」を開きます。ユーザー一覧の「フォローする」で関係を作成し、「自分のフォロー中」で確認できます。「詳細と投稿を見る」ではプロフィールとその人の投稿を表示します。自分にはフォローボタンを出さず、解除後は再フォローできます。一覧は20件ずつ取得します。
+
+| API | 用途・権限 |
+| --- | --- |
+| `GET /api/users?sort=username&limit=20&page=1` | ログインユーザー向けのプロフィール一覧 |
+| `GET /api/users/:id` | ユーザー詳細。メールの非公開制御は従来どおり |
+| `POST /api/follows` | `{ "following": 対象ID }` を送信。followerはログインユーザーから決定 |
+| `GET /api/follows?where[follower][equals]=自分のID&depth=1` | 自分のフォロー中。followingのプロフィールを展開 |
+| `DELETE /api/follows/:id` | 関係レコードのIDを指定して解除。follower本人のみ許可 |
+| `PATCH /api/follows/:id` | 関係の書き換えは全員拒否。変更は解除と新規作成で行う |
+
+`follows`は、usersを2回参照する中間テーブルです。1人が複数の人をフォローでき、1人が複数の人からフォローされる「多対多」を表現します。各関係レコードからusersへの参照は単一のRelationshipです。
+
+`Follows.ts`の `indexes: [{ fields: ['follower', 'following'], unique: true }]` から、SQLiteに `UNIQUE (follower_id, following_id)` が生成されます。存在チェックだけでは同時送信で競合するため、重複の最終防御をDBに任せます。実際のマイグレーションは `apps/backend/src/migrations/20261029_105104.ts` にあります。
+
+Hookで自己フォロー・他人名義・不正な対象ID・対象ユーザー不在を拒否します。対象確認のLocal APIには `req` と `overrideAccess: false` を指定します。解除はAccess Controlのfollower条件で制限し、管理者にも他人の関係を解除する権限を付けていません。閲覧は認証済みユーザーに許可します。ユーザー削除は引き続き禁止です。
+
+作成・解除後はサーバーから関係を再取得します。他タブで変更済みの場合も再取得して操作を続けられます。Payloadの標準応答では、重複作成は400、権限制御で削除済みレコードが見つからない場合は403になるため、HTTPステータスだけで「未ログイン」とは判断せず、meで認証状態を確認します。
+
+`npm run test:follows` は6件の同時作成、DB一意インデックス、本人制約、自己フォロー、対象不在、解除済みへの再解除、再フォロー、投稿のauthor絞り込みを確認します。alice→bobの既存関係があると、その関係を壊さないようテストをスキップします。全項目を検証するには専用DBを使うか、画面からその関係を解除して実行してください。テスト自身が作成した関係と投稿は後処理で削除します。
+
+公式資料: [Payloadの複合インデックス](https://payloadcms.com/docs/database/indexes)。

@@ -187,3 +187,12 @@ SQLiteはローカルファイルとして永続化し、DBファイルと秘密
 - [Local APIの権限](https://payloadcms.com/docs/local-api/overview)
 
 - [Okta OIDC](https://developer.okta.com/docs/concepts/oauth-openid/)
+
+## 12 Wave 3で確認した実装方針
+
+- フォローは独立Collectionとし、`follower`と`following`の複合一意制約をマイグレーションで作成。
+- 管理者も他人のフォローを解除できない。更新は禁止し、解除後の新規作成を許可。
+- 関係の閲覧はログイン必須。フロントは必要なページと対象IDの関係だけ取得し、全ユーザー・全関係の一括取得を避ける。
+- 自分のフォロー中とユーザー一覧は20件ずつ。詳細画面は対象ユーザーの投稿を新着順に取得。
+- 同時作成と他タブの状態変更はDB制約と再取得で扱う。フォロー中限定タイムラインは引き続き対象外。
+- 完了した検証と制限は[チケット台帳](../TICKETS.md)を参照。

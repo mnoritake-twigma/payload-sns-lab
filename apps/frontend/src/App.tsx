@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { People } from './People'
 import { Timeline } from './Timeline'
 import { auth, ApiError, type Trace, type User } from './api'
 
@@ -27,6 +28,7 @@ export function App() {
   const [notice, setNotice] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [socialView, setSocialView] = useState<'posts' | 'people'>('posts')
   const [view, setView] = useState<'account' | 'architecture'>('account')
   const [traces, setTraces] = useState<Trace[]>([])
   const authGeneration = useRef(0)
@@ -73,7 +75,7 @@ export function App() {
     setBusy(true); setError(''); setNotice('')
     try {
       const result = await auth.login(username, password)
-      setUser(result.user); setPassword(''); setView('account')
+      setUser(result.user); setPassword(''); setView('account'); setSocialView('posts')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'バックエンドに接続できません。接続を確認してください。')
     } finally { setBusy(false) }
@@ -93,7 +95,7 @@ export function App() {
     <header className="border-b border-stone-200 bg-white/70">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
         <a href="/" className="flex items-center gap-3 font-semibold tracking-tight"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-950 font-mono text-lg text-lime-200">p</span>Payload <span className="font-normal text-stone-500">SNS Lab</span></a>
-        <span className="mono rounded-full border border-stone-200 px-3 py-1.5 text-[10px] tracking-widest text-stone-500">WAVE 02 / POSTS</span>
+        <span className="mono rounded-full border border-stone-200 px-3 py-1.5 text-[10px] tracking-widest text-stone-500">WAVE 03 / FOLLOWS</span>
       </div>
     </header>
     <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10 sm:py-16">
@@ -126,12 +128,15 @@ export function App() {
               </> : <div className="space-y-4 text-sm leading-7 text-stone-600"><p>画面が <code>POST /api/users/login</code> を呼び出すと、Payloadがパスワードを検証し、HttpOnly Cookieを発行します。</p><p>再読込時は <code>GET /api/users/me</code> で現在のユーザーを取得します。Reactはパスワードやトークンを保存しません。</p><p>ログアウト時はPayloadにセッションの終了を依頼します。DB操作と権限の判定はバックエンドで行います。</p></div>}
               <button className="mt-8 w-full rounded-lg border border-stone-300 px-4 py-3 text-sm hover:bg-stone-50 disabled:opacity-50" onClick={() => void logout()} disabled={busy}>{busy ? 'ログアウトしています…' : 'ログアウト'}</button>
             </div>}
-          {user && !checking && <Timeline key={user.id} user={user} onUnauthorized={() => void restore()} />}
+          {user && !checking && <>
+            <nav className="mt-8 flex gap-6 border-b border-stone-200" aria-label="SNSメニュー"><button className={`tab ${socialView === 'posts' ? 'selected' : ''}`} onClick={() => setSocialView('posts')}>投稿</button><button className={`tab ${socialView === 'people' ? 'selected' : ''}`} onClick={() => setSocialView('people')}>ユーザー・フォロー</button></nav>
+            {socialView === 'posts' ? <Timeline key={user.id} user={user} onUnauthorized={() => void restore()} /> : <People key={user.id} user={user} onUnauthorized={() => void restore()} />}
+          </>}
         </section>
         <aside className="lg:pt-3">
           <div className="mb-5 flex items-center justify-between"><h2 className="text-sm font-semibold">このアプリの構成</h2><span className="mono text-[10px] tracking-widest text-stone-400">ARCHITECTURE</span></div>
           <Flow />
-          <div className="mt-8 rounded-xl bg-emerald-950 p-6 text-white"><p className="mono mb-3 text-[10px] tracking-widest text-lime-200">WAVE 02</p><h2 className="text-base font-semibold">いま確かめること</h2><p className="mt-3 text-sm leading-7 text-emerald-100/80">投稿の作成・新着順の一覧・本人による削除。投稿者と権限はPayloadが確認し、SQLiteに保存します。フォローはWave 3で追加します。</p></div>
+          <div className="mt-8 rounded-xl bg-emerald-950 p-6 text-white"><p className="mono mb-3 text-[10px] tracking-widest text-lime-200">WAVE 03</p><h2 className="text-base font-semibold">いま確かめること</h2><p className="mt-3 text-sm leading-7 text-emerald-100/80">ユーザーを探して、フォローと解除。2人の関連をSQLiteに保存し、重複はDBの一意制約で防ぎます。OktaログインはWave 4で追加します。</p></div>
         </aside>
       </div>
       <section className="mt-14 border-t border-stone-200 pt-6" aria-label="API通信履歴">

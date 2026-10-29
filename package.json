@@ -18,7 +18,8 @@
     "migrate": "npm run migrate -w @sns/backend",
     "test:auth": "node --test tests/auth.test.mjs",
     "db:inspect": "node scripts/inspect-db.mjs",
-    "test:posts": "node --test tests/posts.test.mjs"
+    "test:posts": "node --test tests/posts.test.mjs",
+    "test:follows": "node --test tests/follows.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

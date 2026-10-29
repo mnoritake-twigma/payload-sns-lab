@@ -4,7 +4,7 @@ import { ApiError, request, type User } from './api'
 type Post = { id: number; body: string; author: User | number; createdAt: string }
 type Page = { docs: Post[]; totalDocs: number; totalPages: number; page: number; hasNextPage: boolean }
 
-export function Timeline({ user, onUnauthorized }: { user: User; onUnauthorized: () => void }) {
+export function Timeline({ user, onUnauthorized, authorId }: { user: User; onUnauthorized: () => void; authorId?: User['id'] }) {
   const [body, setBody] = useState('')
   const [page, setPage] = useState(1)
   const [revision, setRevision] = useState(0)
@@ -30,7 +30,7 @@ export function Timeline({ user, onUnauthorized }: { user: User; onUnauthorized:
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true); setResult(null)
-    void request<Page>(`/api/posts?sort=-createdAt,-id&limit=20&page=${page}&depth=1`, { signal: controller.signal })
+    void request<Page>(`/api/posts?sort=-createdAt,-id&limit=20&page=${page}&depth=1${authorId ? `&where[author][equals]=${encodeURIComponent(authorId)}` : ''}`, { signal: controller.signal })
       .then(data => {
         if (controller.signal.aborted) return
         if (page > Math.max(1, data.totalPages)) { setPage(Math.max(1, data.totalPages)); return }
@@ -39,7 +39,7 @@ export function Timeline({ user, onUnauthorized }: { user: User; onUnauthorized:
       .catch(e => { if (!controller.signal.aborted) fail(e) })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [page, revision])
+  }, [page, revision, authorId])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -63,16 +63,16 @@ export function Timeline({ user, onUnauthorized }: { user: User; onUnauthorized:
     finally { locked.current = false; if (active.current) setBusy(false) }
   }
   return <section className="mt-8 space-y-5" aria-label="投稿タイムライン">
-    <form className="card space-y-4" onSubmit={submit}>
+    {!authorId && <form className="card space-y-4" onSubmit={submit}>
       <label htmlFor="post-body" className="block font-semibold">いま、共有したいこと</label>
       <textarea id="post-body" rows={4} maxLength={500} value={body} onChange={e => setBody(e.target.value)} disabled={busy} placeholder="学んだことや、気づいたことを書いてみましょう。" aria-describedby="post-count" />
       <div className="flex items-center justify-between gap-4"><span id="post-count" className="text-xs text-stone-500">{body.length} / 500文字</span><button className="primary" disabled={busy || !body.trim()}>{busy ? '処理中…' : '投稿する'}</button></div>
-    </form>
+    </form>}
     {notice && <p role="status" className="text-sm text-emerald-800">{notice}</p>}
     {error && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}<button className="ml-3 underline" onClick={() => { setError(''); setRevision(n => n + 1) }}>一覧を再読込</button></div>}
-    <div className="flex items-center justify-between"><h2 className="font-semibold">みんなの投稿</h2><button className="text-xs underline disabled:opacity-50" disabled={loading || busy} onClick={() => { setError(''); setRevision(n => n + 1) }}>更新する</button></div>
+    <div className="flex items-center justify-between"><h2 className="font-semibold">{authorId ? 'このユーザーの投稿' : 'みんなの投稿'}</h2><button className="text-xs underline disabled:opacity-50" disabled={loading || busy} onClick={() => { setError(''); setRevision(n => n + 1) }}>更新する</button></div>
     {loading ? <p role="status" className="card text-sm">投稿を読み込んでいます…</p> : result && <>
-      {result.docs.length === 0 && <p className="card text-sm text-stone-500">まだ投稿がありません。最初の投稿を書いてみましょう。</p>}
+      {result.docs.length === 0 && <p className="card text-sm text-stone-500">{authorId ? 'このユーザーの投稿はまだありません。' : 'まだ投稿がありません。最初の投稿を書いてみましょう。'}</p>}
       {result.docs.map(post => {
         const author = typeof post.author === 'object' ? post.author : null
         const own = String(author?.id ?? post.author) === String(user.id)
