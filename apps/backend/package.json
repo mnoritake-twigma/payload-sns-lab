@@ -1,0 +1,21 @@
+{
+  "name": "@sns/backend", "private": true, "type": "module", "version": "0.1.0",
+  "scripts": {
+    "predev": "payload generate:importmap",
+    "prebuild": "payload generate:importmap",
+    "dev": "next dev --webpack --hostname 127.0.0.1 --port 4310",
+    "build": "next build --webpack",
+    "start": "next start --hostname 127.0.0.1 --port 4310",
+    "typecheck": "tsc --noEmit",
+    "seed": "node --import tsx --env-file=.env scripts/seed.ts",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
+    "migrate:create": "payload migrate:create",
+    "migrate": "payload migrate"
+  },
+  "dependencies": {
+    "@payloadcms/db-sqlite": "3.92.1", "@payloadcms/next": "3.92.1", "payload": "3.92.1",
+    "next": "16.4.3", "react": "^19.2.0", "react-dom": "^19.2.0", "graphql": "^16.11.0"
+  },
+  "devDependencies": { "typescript": "^5.9.3", "tsx": "^4.20.6", "@types/node": "^24.0.0", "@types/react": "^19.2.0", "@types/react-dom": "^19.2.0" }
+}
